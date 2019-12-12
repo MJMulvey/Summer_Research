@@ -8,3 +8,5 @@ Example_Data
 #pyopenms tutorial files and intermediate mzML data
 *.pdf
 *.mzML
+
+.DS_store
