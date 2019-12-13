@@ -5,8 +5,10 @@ Example_Data
 #Disk images (Ubuntu and DataAnalytics CD)
 *.iso
 
-#pyopenms tutorial files and intermediate mzML data
+#pyopenms tutorial files and intermediate mzML and xlsx data
 *.pdf
 *.mzML
+*.xlsx
 
+#Don't need these
 .DS_store
