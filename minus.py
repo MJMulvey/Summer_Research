@@ -51,11 +51,17 @@ unbound_exp = pyopenms.MSExperiment()
 unbound_spectrum = MSSpectrum()
 unbound_mz = []
 unbound_intensity =[]
+unbound_max = 0
 #Process each line of the text file and store it in arrays
 for line in unbound_lines:
     current_mz, current_intensity = line.split()
+    if float(current_intensity) > unbound_max:
+        unbound_max = float(current_intensity)
     unbound_mz.append(float(current_mz))
     unbound_intensity.append(float(current_intensity))
+#Normalise the intensities in the unbound sample (max = 1)
+for i in range(len(unbound_intensity)):
+    unbound_intensity[i] = unbound_intensity[i] / unbound_max
 #Update the experiment with the data, then store it in a file
 unbound_spectrum.set_peaks([unbound_mz, unbound_intensity])
 unbound_exp.setSpectra([unbound_spectrum])
@@ -71,11 +77,17 @@ bound_exp = pyopenms.MSExperiment()
 bound_spectrum = MSSpectrum()
 bound_mz = []
 bound_intensity =[]
+bound_max = 0
 #Process each line of the text file and store it in arrays
 for line in bound_lines:
     current_mz, current_intensity = line.split()
+    if float(current_intensity) > bound_max:
+        bound_max = float(current_intensity)
     bound_mz.append(float(current_mz))
     bound_intensity.append(float(current_intensity))
+#Normalise the intensities in the bound sample (max = 1)
+for i in range(len(bound_intensity)):
+    bound_intensity[i] = bound_intensity[i] / bound_max
 #Update the experiment with the data, then store it in a file
 bound_spectrum.set_peaks([bound_mz, bound_intensity])
 bound_exp.setSpectra([bound_spectrum])
@@ -92,9 +104,14 @@ unbound_spectrum = sum_spectra(unbound.getSpectra())
 #Calculate the effect of binding on the unbound spectrum
 binding_effect = get_difference(bound_spectrum, unbound_spectrum)
 
-output_file = open("output.txt", "w")
-output_string = ""
-for mz, i in binding_effect.items():
-    output_string += str(mz) + "\t" + str(i) + "\n"
-output_file.write(output_string)
-output_file.close()
+#import matplotlib.pyplot as plt
+#plt.bar(binding_effect.keys(), binding_effect.values(), 10, color='r')
+#plt.show()
+
+#Output binding effect data to tab-separated txt file for visualisation in Excel
+#output_file = open("output.txt", "w")
+#output_string = ""
+#for mz, i in binding_effect.items():
+#    output_string += str(mz) + "\t" + str(i) + "\n"
+#output_file.write(output_string)
+#output_file.close()
