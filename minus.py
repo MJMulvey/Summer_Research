@@ -17,20 +17,31 @@ def sum_spectra(spectra):
     return(summed_peaks)
 
 #Returns a dictionary of peaks obtained from taking the peaks of the original spectrum away from the peaks of the result spectrum
-def get_difference(result, original):
+def get_difference(bound, unbound):
+    bound_peaks = {}
+    unbound_peaks = {}
     difference_peaks = {}
     #TODO Resolution - does get_peaks provide enough? Too much?
     #TODO How should I account for small variations / noise? e.g. Two peaks in result and original with the same intensity but a tiny difference in mz (which may be the same molecule in reality)
-    for mz, intensity in result.items():
-        if mz in difference_peaks:
-            difference_peaks[mz] += intensity
+    for mz, intensity in bound.items():
+        if mz in bound_peaks:
+            bound_peaks[mz] += intensity
         else:
-            difference_peaks[mz] = intensity
-    for mz, intensity in original.items():
-        if mz in difference_peaks:
-            difference_peaks[mz] -= intensity
+            bound_peaks[mz] = intensity
+    for mz, intensity in unbound.items():
+        if mz in unbound_peaks:
+            unbound_peaks[mz] += intensity
         else:
-            difference_peaks[mz] = -intensity
+            unbound_peaks[mz] = intensity
+    bound_max = max(bound_peaks.values())
+    unbound_max = max(unbound_peaks.values())
+    for mz, i in bound_peaks.items():
+        difference_peaks[mz] = i / bound_max
+    for mz, i in unbound_peaks.items():
+        if mz in difference_peaks:
+            difference_peaks[mz] -= i / unbound_max
+        else:
+            difference_peaks[mz] = - i / unbound_max
     return(difference_peaks)
 
 #Remove line breaks from plain test data
@@ -51,17 +62,11 @@ unbound_exp = pyopenms.MSExperiment()
 unbound_spectrum = MSSpectrum()
 unbound_mz = []
 unbound_intensity =[]
-unbound_max = 0
 #Process each line of the text file and store it in arrays
 for line in unbound_lines:
     current_mz, current_intensity = line.split()
-    if float(current_intensity) > unbound_max:
-        unbound_max = float(current_intensity)
     unbound_mz.append(float(current_mz))
     unbound_intensity.append(float(current_intensity))
-#Normalise the intensities in the unbound sample (max = 1)
-for i in range(len(unbound_intensity)):
-    unbound_intensity[i] = unbound_intensity[i] / unbound_max
 #Update the experiment with the data, then store it in a file
 unbound_spectrum.set_peaks([unbound_mz, unbound_intensity])
 unbound_exp.setSpectra([unbound_spectrum])
@@ -77,17 +82,11 @@ bound_exp = pyopenms.MSExperiment()
 bound_spectrum = MSSpectrum()
 bound_mz = []
 bound_intensity =[]
-bound_max = 0
 #Process each line of the text file and store it in arrays
 for line in bound_lines:
     current_mz, current_intensity = line.split()
-    if float(current_intensity) > bound_max:
-        bound_max = float(current_intensity)
     bound_mz.append(float(current_mz))
     bound_intensity.append(float(current_intensity))
-#Normalise the intensities in the bound sample (max = 1)
-for i in range(len(bound_intensity)):
-    bound_intensity[i] = bound_intensity[i] / bound_max
 #Update the experiment with the data, then store it in a file
 bound_spectrum.set_peaks([bound_mz, bound_intensity])
 bound_exp.setSpectra([bound_spectrum])
@@ -104,14 +103,18 @@ unbound_spectrum = sum_spectra(unbound.getSpectra())
 #Calculate the effect of binding on the unbound spectrum
 binding_effect = get_difference(bound_spectrum, unbound_spectrum)
 
-#import matplotlib.pyplot as plt
-#plt.bar(binding_effect.keys(), binding_effect.values(), 10, color='r')
-#plt.show()
+import matplotlib.pyplot as plt
+x = list(binding_effect.keys())
+y = list(binding_effect.values())
+for i in range(0,len(x),50):
+    plt.vlines(x[i],0,y[i])
+    print(i)
+plt.show()
 
-#Output binding effect data to tab-separated txt file for visualisation in Excel
-#output_file = open("output.txt", "w")
-#output_string = ""
-#for mz, i in binding_effect.items():
-#    output_string += str(mz) + "\t" + str(i) + "\n"
-#output_file.write(output_string)
-#output_file.close()
+#Output binding effect data to tab-separated txt file for visualisation
+output_file = open("output.txt", "w")
+output_string = ""
+for mz, i in binding_effect.items():
+    output_string += str(mz) + "\t" + str(i) + "\n"
+output_file.write(output_string)
+output_file.close()

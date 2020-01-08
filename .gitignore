@@ -12,3 +12,4 @@ Example_Data
 
 #Don't need these
 .DS_store
+*.png
