@@ -1,6 +1,7 @@
 #Data folders
 DropBox (Joerg Wicker)
 Example_Data
+xy
 
 #Disk images (Ubuntu and DataAnalytics CD)
 *.iso
@@ -13,3 +14,4 @@ Example_Data
 #Don't need these
 .DS_store
 *.png
+*.xy

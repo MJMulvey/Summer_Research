@@ -1,4 +1,4 @@
-#TODO Why do I have to import both?
+#TODO Why do I have to import both? (because of pyopenms.msexperiment() and msexperiment?)
 from pyopenms import *
 import pyopenms
 
@@ -53,7 +53,8 @@ def remove_breaks(lines):
     return(lines)
 
 #Open the unbound file and read the lines
-unbound_file = open("Ub_ISO779_1.xy", "r")
+#unbound_file = open("Ub_ISO779_1.xy", "r")
+unbound_file = open("ub_5_1.xy", "r")
 unbound_lines = unbound_file.readlines()
 unbound_file.close()
 unbound_lines = remove_breaks(unbound_lines)
@@ -73,7 +74,8 @@ unbound_exp.setSpectra([unbound_spectrum])
 pyopenms.MzMLFile().store("unbound.mzML", unbound_exp)
 
 #Open the bound file and read the lines
-bound_file = open("Ub_C_ISO779_1.xy", "r")
+#bound_file = open("Ub_C_ISO779_1.xy", "r")
+bound_file = open("t_2.xy", "r")
 bound_lines = bound_file.readlines()
 bound_file.close()
 bound_lines = remove_breaks(bound_lines)
@@ -103,18 +105,40 @@ unbound_spectrum = sum_spectra(unbound.getSpectra())
 #Calculate the effect of binding on the unbound spectrum
 binding_effect = get_difference(bound_spectrum, unbound_spectrum)
 
-import matplotlib.pyplot as plt
-x = list(binding_effect.keys())
-y = list(binding_effect.values())
-for i in range(0,len(x),50):
-    plt.vlines(x[i],0,y[i])
-    print(i)
-plt.show()
+#Convert the string representation of Ubiquitin into an amino acid sequence object
+ubiquitin = AASequence.fromString("MQIFVKTLTGKTITLEVEPSDTIENVKAKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGG")
+tsg = TheoreticalSpectrumGenerator()
+spectrum = MSSpectrum()
+#Initialise parameters object and set the values for parameters
+parameters = Param()
+parameters.setValue(b"add_isotopes", b"true", "")
+parameters.setValue(b"add_losses", b"true", "")
+parameters.setValue(b"add_b_ions", b"true", "")
+parameters.setValue(b"add_y_ions", b"true", "")
+parameters.setValue(b"add_a_ions", b"true", "")
+parameters.setValue(b"add_c_ions", b"true", "")
+parameters.setValue(b"add_x_ions", b"true", "")
+parameters.setValue(b"add_z_ions", b"true", "")
+parameters.setValue(b"add_precursor_peaks", b"true", "")
+parameters.setValue(b"add_all_precursor_charges", b"true", "")
+parameters.setValue(b"add_first_prefix_ion", b"true", "")
+parameters.setValue(b"add_metainfo", b"true", "")
+tsg.setParameters(parameters)
+#Generate the theoretical spectrum of Ubiquitin
+tsg.getSpectrum(spectrum, ubiquitin, 1, 2)
 
-#Output binding effect data to tab-separated txt file for visualisation
-output_file = open("output.txt", "w")
-output_string = ""
+from scipy.spatial.distance import euclidean
+from fastdtw import fastdtw
+
+difference = []
 for mz, i in binding_effect.items():
-    output_string += str(mz) + "\t" + str(i) + "\n"
-output_file.write(output_string)
-output_file.close()
+    difference.append([mz,i])
+
+theoretical = []
+for i in range(len(spectrum.get_peaks()[0])):
+    current_mz = spectrum.get_peaks()[0][i]
+    current_intensity = spectrum.get_peaks()[1][i]
+    theoretical.append([current_mz, current_intensity])
+
+distance, path = fastdtw(difference, theoretical)
+print(distance)
