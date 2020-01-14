@@ -132,7 +132,8 @@ from fastdtw import fastdtw
 
 difference = []
 for mz, i in binding_effect.items():
-    difference.append([mz,i])
+    if i < 0:
+        difference.append([mz,-i])
 
 theoretical = []
 for i in range(len(spectrum.get_peaks()[0])):
@@ -140,5 +141,24 @@ for i in range(len(spectrum.get_peaks()[0])):
     current_intensity = spectrum.get_peaks()[1][i]
     theoretical.append([current_mz, current_intensity])
 
+from operator import itemgetter
+
+length = len(theoretical)
+filtered_difference = sorted(difference, key=itemgetter(1), reverse=True)
+filtered_difference = filtered_difference[:length]
+
+#import matplotlib.pyplot as plt
+#for i in range(0,len(filtered_difference),1):
+#    item = filtered_difference[i]
+#    plt.vlines(item[0],0,item[1])
+#    print(i)
+#plt.show()
+
+#print("Diff", len(difference))
+#print("Theo", len(theoretical))
+#print("Filt", len(filtered_difference))
+
 distance, path = fastdtw(difference, theoretical)
-print(distance)
+norm_distance = distance / length
+print("Dist", distance)
+print("Norm dist", norm_distance)
