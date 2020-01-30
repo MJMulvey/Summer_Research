@@ -41,7 +41,7 @@ def get_difference(bound, unbound):
         if mz in difference_peaks:
             difference_peaks[mz] -= i / unbound_max
         else:
-            difference_peaks[mz] = - i / unbound_max
+            difference_peaks[mz] = -i / unbound_max
     return(difference_peaks)
 
 #Remove line breaks from plain test data
@@ -54,7 +54,7 @@ def remove_breaks(lines):
 
 #Open the unbound file and read the lines
 #unbound_file = open("Ub_ISO779_1.xy", "r")
-unbound_file = open("ub_5_1.xy", "r")
+unbound_file = open("ub_1_1.xy", "r")
 unbound_lines = unbound_file.readlines()
 unbound_file.close()
 unbound_lines = remove_breaks(unbound_lines)
@@ -66,7 +66,8 @@ unbound_intensity =[]
 #Process each line of the text file and store it in arrays
 for line in unbound_lines:
     current_mz, current_intensity = line.split()
-    unbound_mz.append(float(current_mz))
+    #Accuracy of mz values is standardised at 1dp as this is the lowest accuracy encountered
+    unbound_mz.append(round(float(current_mz),1))
     unbound_intensity.append(float(current_intensity))
 #Update the experiment with the data, then store it in a file
 unbound_spectrum.set_peaks([unbound_mz, unbound_intensity])
@@ -87,7 +88,8 @@ bound_intensity =[]
 #Process each line of the text file and store it in arrays
 for line in bound_lines:
     current_mz, current_intensity = line.split()
-    bound_mz.append(float(current_mz))
+    #Accuracy of mz values is standardised at 1dp as this is the lowest accuracy encountered
+    bound_mz.append(round(float(current_mz),1))
     bound_intensity.append(float(current_intensity))
 #Update the experiment with the data, then store it in a file
 bound_spectrum.set_peaks([bound_mz, bound_intensity])
@@ -112,16 +114,16 @@ spectrum = MSSpectrum()
 #Initialise parameters object and set the values for parameters
 parameters = Param()
 parameters.setValue(b"add_isotopes", b"true", "")
-parameters.setValue(b"add_losses", b"true", "")
+#parameters.setValue(b"add_losses", b"true", "")
 parameters.setValue(b"add_b_ions", b"true", "")
 parameters.setValue(b"add_y_ions", b"true", "")
 parameters.setValue(b"add_a_ions", b"true", "")
 parameters.setValue(b"add_c_ions", b"true", "")
 parameters.setValue(b"add_x_ions", b"true", "")
 parameters.setValue(b"add_z_ions", b"true", "")
-parameters.setValue(b"add_precursor_peaks", b"true", "")
-parameters.setValue(b"add_all_precursor_charges", b"true", "")
-parameters.setValue(b"add_first_prefix_ion", b"true", "")
+#parameters.setValue(b"add_precursor_peaks", b"true", "")
+#parameters.setValue(b"add_all_precursor_charges", b"true", "")
+#parameters.setValue(b"add_first_prefix_ion", b"true", "")
 parameters.setValue(b"add_metainfo", b"true", "")
 tsg.setParameters(parameters)
 #Generate the theoretical spectrum of Ubiquitin
@@ -143,22 +145,93 @@ for i in range(len(spectrum.get_peaks()[0])):
 
 from operator import itemgetter
 
-length = len(theoretical)
+len_t = len(theoretical)
 filtered_difference = sorted(difference, key=itemgetter(1), reverse=True)
-filtered_difference = filtered_difference[:length]
+if len_t < len(filtered_difference):
+    filtered_difference = filtered_difference[:len_t]
+#filtered_difference = filtered_difference[:1000]
 
-#import matplotlib.pyplot as plt
-#for i in range(0,len(filtered_difference),1):
-#    item = filtered_difference[i]
-#    plt.vlines(item[0],0,item[1])
-#    print(i)
-#plt.show()
+len_fd = len(filtered_difference)
 
-#print("Diff", len(difference))
-#print("Theo", len(theoretical))
-#print("Filt", len(filtered_difference))
+distance, path = fastdtw(filtered_difference, theoretical)
+#Using M + N (M = the length of one side, and N = the length of the other) because it's proportional to the length of the diagonal across the grid
+norm_distance = distance / (len_t + len_fd)
+#print("Dist", distance)
+#print("Norm dist", norm_distance)
 
-distance, path = fastdtw(difference, theoretical)
-norm_distance = distance / length
-print("Dist", distance)
-print("Norm dist", norm_distance)
+#Tried different numbers of significant peaks (s). In one sample the following s / (lowest % intensity captured) pairs were obtained
+#(10,65%),(25,29%),(50,12%),(100,2.9%),(200,1.0%),(300,0.90%),(500,0.78%),(1000,0.51%)
+significant_peaks = filtered_difference[:100]
+
+#Values in matches are indicies
+#matches = {}
+#for i in range(len(significant_peaks)):
+#    matches[i] = []
+#for link in path:
+#    if link[0] in matches:
+#        matches[link[0]].append(link[1])
+
+#rounded_theoretical = {}
+#for i in range(len(theoretical)):
+#    peak = theoretical[i]
+#    rounded = round(peak[0],1)
+#    if rounded not in rounded_theoretical.keys():
+#        rounded_theoretical[rounded] = peak[1]
+    #Duplicate theoretical peaks with the same rounded mz are discarded (as we're unable to tell which of them the experimental peak matches to)
+    #The peak with the largest intensity is retained
+#    else:
+#        rounded_theoretical[rounded] = max(peak[1],rounded_theoretical[rounded])
+
+def find_closest(peak):
+    if peak[0] < theoretical[0][0]:
+        return(theoretical[0])
+    elif peak[0] > theoretical[-1][0]:
+        return(theoretical[-1])
+    else:
+        left = 0
+        right = 0
+        index = 0
+        while left == 0 :
+            current = theoretical[index]
+            if current[0] == peak[0]:
+                return(current)
+            elif current[0] > peak[0]:
+                right = current
+                left = theoretical[index - 1]
+            index += 1
+        left_closer = peak[0] - left[0] < right[0] - peak[0]
+        if left_closer:
+            return(left)
+        else:
+            return(right)
+
+matched_peaks = []
+for peak in significant_peaks:
+    theo_peak = find_closest(peak)
+    matched_peaks.append([peak, theo_peak])
+
+
+matching_significance = {}
+for match in matched_peaks:
+    charge = match[1][0]
+    intensity = match[0][1]
+    if charge not in matching_significance.keys():
+        matching_significance[charge] = intensity
+    else:
+        matching_significance[charge] += intensity
+
+fragments = []
+
+for ion, peak in zip(spectrum.getStringDataArrays()[0], spectrum):
+    for peak_mz, peak_sig in matching_significance.items():
+        if peak.getMZ() == peak_mz:
+            fragments.append([ion, peak_mz, peak_sig])
+
+fragments = sorted(fragments, key=itemgetter(2), reverse=True)
+
+print("Ion\t\tm/z\t\t\tRelative Significance")
+for fragment in fragments:
+    if len(fragment[0]) < 5:
+        print(fragment[0], "\t\t", fragment[1], "\t\t", fragment[2], sep="")
+    else:
+        print(fragment[0], "\t", fragment[1], "\t\t", fragment[2], sep="")
